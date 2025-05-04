@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <!-- Запрещаем масштабирование страницы -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no">
+  <title>NFT номер {{ token_value }}</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Google Fonts: Noto Sans JP (основной текст) и Lato (для номеров) -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@700&display=swap" rel="stylesheet">
+  <style>
+    /* Фиксированная высота документа и отключение общего скролла */
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    /* Область с содержимым, которая скроллится при необходимости */
+    .content {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      overflow-y: auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      font-family: 'Noto Sans JP', sans-serif;
+      color: #333;
+    }
+    .market-card {
+      border: none;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: box-shadow 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(0,0,0,0.1));
+    }
+    .market-card:hover {
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+    .market-number {
+      font-family: 'Lato', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    .market-info p {
+      margin: 0;
+      font-size: 1rem;
+    }
+    .rarity-badge {
+      position: absolute;
+      top: 10px; right: 10px;
+      background-color: #ff9800;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .token-availability {
+      position: absolute;
+      bottom: 10px; right: 10px;
+      background: linear-gradient(90deg, #ffd700, #ffa500);
+      color: #fff;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    /* Заголовок с круглой кнопкой назад и уменьшенным текстом в одну строку */
+    .header-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .header-row .btn-back {
+      width: 2.5rem;
+      height: 2.5rem;
+      padding: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      margin-right: 0.75rem;
+    }
+    .header-row h1 {
+      font-size: 1.25rem;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <div class="container my-4">
+      <!-- Круглая кнопка "<" и уменьшенный заголовок NFT номер в одну строку -->
+      <div class="header-row">
+        <a href="javascript:history.back()" class="btn btn-secondary btn-back">&lt;</a>
+        <h1>NFT номер: {{ token_value }}</h1>
+      </div>
+      
+      {% if tokens %}
+        {% for entry in tokens %}
+          <div class="market-card"
+               {% if entry.token.bg_is_image %}
+                 style="background: url('{{ entry.token.bg_color }}') no-repeat center/cover; color: {{ entry.token.text_color }};"
+               {% else %}
+                 {% if 'linear-gradient' in entry.token.bg_color %}
+                   style="background: {{ entry.token.bg_color }}; color: {{ entry.token.text_color }};"
+                 {% else %}
+                   style="background-color: {{ entry.token.bg_color }}; color: {{ entry.token.text_color }};"
+                 {% endif %}
+               {% endif %}>
+            {% if entry.token.overall_rarity != 'Обычный' %}
+              <div class="rarity-badge">{{ entry.token.overall_rarity }}</div>
+            {% endif %}
+            <div class="market-number">
+              {% if 'linear-gradient' in entry.token.text_color %}
+                <span style="background: {{ entry.token.text_color }}; -webkit-background-clip: text; color: transparent;">
+                  {{ entry.token.token }}
+                </span>
+              {% else %}
+                <span style="color: {{ entry.token.text_color }};">
+                  {{ entry.token.token }}
+                </span>
+              {% endif %}
+            </div>
+            {% if entry.token.bg_availability %}
+              <div class="token-availability">
+                {{ entry.token.bg_availability | replace("Наличие: ", "") | replace("/", " из ") }}
+              </div>
+            {% endif %}
+            <div class="market-info mt-2">
+              {% if entry.source == 'auction' %}
+                <p><strong>Статус:</strong> NFT номер на аукционе</p>
+                <p><strong>Текущая ставка:</strong> {{ entry.current_bid }} 💎</p>
+              {% elif entry.source == 'market' %}
+                <p><strong>Цена:</strong> {{ entry.price }} 💎 (на маркетплейсе)</p>
+              {% else %}
+                <p><strong>Редкость номера:</strong> {{ entry.token.number_rarity }}</p>
+                <p><strong>Редкость цифр:</strong> {{ entry.token.text_rarity }}</p>
+                <p><strong>Редкость фона:</strong> {{ entry.token.bg_rarity }}</p>
+                <p><strong>Дата создания:</strong> {{ entry.token.timestamp }}</p>
+                <p>Владелец: <a href="/profile/{{ entry.owner_id }}">{{ entry.owner_id }}</a></p>
+              {% endif %}
+              {% if entry.token.bg_availability %}
+                <p><strong>Наличие:</strong> {{ entry.token.bg_availability | replace("Наличие: ", "") | replace("/", " из ") }}</p>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <!-- Модальное окно для ошибки "NFT номер не найден" -->
+    {% if error %}
+    <div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="errorModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="errorModalLabel">Ошибка</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Закрыть">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            {{ error }}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Подключаем jQuery, Popper и Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <!-- Автоматическое открытие модального окна, если передана ошибка -->
+  <script>
+    $(document).ready(function(){
+      {% if error %}
+        $('#errorModal').modal('show');
+      {% endif %}
+    });
+  </script>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- Авто-разворачивание bottom sheet при открытии -->
+  <script>
+    if (window.Telegram && Telegram.WebApp) {
+      // Инициализация WebApp
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+
+      // Вешаем вибрацию на клики по кнопкам
+      if (Telegram.WebApp.HapticFeedback) {
+        const selectors = ['button', 'a.btn', '.btn-icon', 'input[type="submit"]'];
+        document.querySelectorAll(selectors.join(',')).forEach(el => {
+          el.addEventListener('click', () => {
+            // Тип воздействия: 'light', 'medium' или 'heavy'
+            Telegram.WebApp.HapticFeedback.impactOccurred('light');
+          });
+        });
+      }
+    }
+  </script>
+  
+</body>
+</html>

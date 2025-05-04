@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no">
+  <title>Активные аукционы - TTH NFT</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Google Fonts: Noto Sans JP и Lato -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@700&display=swap" rel="stylesheet">
+  <style>
+    /* Общий стиль страницы */
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      font-family: 'Noto Sans JP', sans-serif;
+      color: #333;
+    }
+    /* Фиксированная верхняя панель */
+    .fixed-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      height: 70px;
+    }
+    .header {
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 10px;
+    }
+    .fixed-header h1 {
+      font-size: 1.5rem;
+    }
+    .home-btn-img {
+      max-height: 40px;
+    }
+
+    /* Стили основных кнопок в одну строку */
+    .main-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .main-buttons a, .main-buttons button {
+      margin: 0;
+    }
+
+    /* Стили карточек аукционов */
+    .auction-card {
+      border: none;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: box-shadow 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(0,0,0,0.1));
+    }
+    .auction-card:hover {
+      /* без масштабирования, только усиление тени */
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    .auction-number {
+      font-family: 'Lato', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    .auction-info p {
+      margin: 0;
+      font-size: 1rem;
+    }
+    .auction-timer {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #d9534f;
+    }
+    .rarity-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: #ff9800;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .rarity-info-btn {
+      position: absolute;
+      top: 10px;
+      right: 70px;
+      background-color: #ff9800;
+      color: #fff;
+      font-size: 1rem;
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .token-availability {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: linear-gradient(90deg, #ffd700, #ffa500);
+      color: #fff;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    h1.mb-4 {
+      font-size: 2rem;
+    }
+    /* Стили модальных окон: стандартный белый фон */
+    .modal-content {
+      border-radius: 15px;
+      border: none;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      background-color: #fff;
+      color: #333;
+    }
+    .modal-header, .modal-footer {
+      border: none;
+      background: none;
+    }
+    .modal-body p, .modal-body h5 {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 1rem;
+    }
+    /* Контейнер для скроллинга */
+    .content {
+      position: absolute;
+      top: 70px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    /* Модальные карточки без трансформаций */
+    .modal-token-card {
+      padding: 40px !important;
+      border: 1px solid #ddd;
+      border-radius: 15px;
+      transition: none !important;
+    }
+    .modal-token-card:hover {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+  </style>
+  <script>
+    function startCountdown(element, endTime) {
+      function updateTimer() {
+        var now = Date.now();
+        var distance = endTime - now;
+        if (distance < 0) {
+          element.innerHTML = "Завершён";
+          clearInterval(interval);
+        } else {
+          var hours = Math.floor(distance / (1000 * 60 * 60));
+          var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+          var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+          element.innerHTML =
+            String(hours).padStart(2, '0') + ':' +
+            String(minutes).padStart(2, '0') + ':' +
+            String(seconds).padStart(2, '0');
+        }
+      }
+      updateTimer();
+      var interval = setInterval(updateTimer, 1000);
+    }
+    window.onload = function() {
+      var timers = document.getElementsByClassName("countdown-timer");
+      for (var i = 0; i < timers.length; i++) {
+        var el = timers[i];
+        startCountdown(el, parseInt(el.getAttribute("data-endtime")));
+      }
+    }
+    function validateBidForm(form) {
+      if (form.bid_amount.value <= 0) {
+        document.getElementById("errorModalBody").innerText = "Ставка должна быть больше нуля.";
+        $('#errorModal').modal('show');
+        return false;
+      }
+      return true;
+    }
+  </script>
+</head>
+<body>
+  <!-- Верхняя панель -->
+  <div class="container-fluid fixed-header header">
+    <div class="d-flex justify-content-between align-items-center">
+      <a href="/"><img src="/static/butons/home.png" alt="На главную" class="home-btn-img"></a>
+      <h1 class="mb-0 text-center flex-grow-1">Активные аукционы</h1>
+      <div style="width:50px;"></div>
+    </div>
+  </div>
+
+  <!-- Основной контент -->
+  <div class="content">
+    <div class="container my-4">
+      <!-- Кнопки в одну строку -->
+      <div class="row my-3 main-buttons justify-content-center">
+        <button type="button" class="btn btn-dark" data-toggle="modal" data-target="#createAuctionModal">
+          Создать аукцион
+        </button>
+        <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#finishAuctionModal">
+          Завершить аукцион
+        </button>
+      </div>
+
+      <!-- Список аукционов -->
+      <div class="row">
+        {% if auctions %}
+          {% for auction in auctions %}
+            <div class="col-md-6">
+              <div class="auction-card"
+                {% if auction.token.bg_is_image and auction.token.bg_rarity == "0.1%" %}
+                  style="background: url('{{ auction.token.bg_color }}') center/cover; color: {{ auction.token.text_color }}; border: 3px solid gold;"
+                {% elif auction.token.bg_is_image %}
+                  style="background: url('{{ auction.token.bg_color }}') center/cover; color: {{ auction.token.text_color }};"
+                {% else %}
+                  {% if 'linear-gradient' in auction.token.bg_color %}
+                    style="background: {{ auction.token.bg_color }}; color: {{ auction.token.text_color }};"
+                  {% else %}
+                    style="background-color: {{ auction.token.bg_color }}; color: {{ auction.token.text_color }};"
+                  {% endif %}
+                {% endif %}>
+                {% if auction.token.overall_rarity != 'Обычный' %}
+                  <div class="rarity-badge">{{ auction.token.overall_rarity }}</div>
+                  <button type="button" class="rarity-info-btn" data-toggle="modal" data-target="#auctionDetailsModal{{ loop.index }}">?</button>
+                {% endif %}
+                <div class="auction-number">{{ auction.token.token }}</div>
+                <div class="auction-info mt-2">
+                  <p><strong>Текущая ставка:</strong> {{ auction.current_bid }} 💎</p>
+                  <p><strong>Осталось:</strong>
+                    <span class="countdown-timer auction-timer" data-endtime="{{ auction.end_time * 1000 }}"></span>
+                  </p>
+                  <form action="/bid_web" method="post" class="form-inline mt-2" onsubmit="return validateBidForm(this);">
+                    <input type="hidden" name="auction_id" value="{{ auction.auction_id }}">
+                    <div class="form-group mb-2">
+                      <input type="number" name="bid_amount" class="form-control" placeholder="Ваша ставка" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary mb-2 ml-2">Сделать ставку</button>
+                  </form>
+                </div>
+                {% if auction.token.bg_availability %}
+                  <div class="token-availability">
+                    {{ auction.token.bg_availability | replace("Наличие: ", "") | replace("/", " из ") }}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Модальное окно деталей -->
+            <div class="modal fade" id="auctionDetailsModal{{ loop.index }}" tabindex="-1">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Детали аукциона</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="text-center mb-3">
+                      <div class="auction-card modal-token-card"
+                        {% if auction.token.bg_is_image %}
+                          style="background: url('{{ auction.token.bg_color }}') center/cover; color: {{ auction.token.text_color }};"
+                        {% else %}
+                          {% if 'linear-gradient' in auction.token.bg_color %}
+                            style="background: {{ auction.token.bg_color }}; color: {{ auction.token.text_color }};"
+                          {% else %}
+                            style="background-color: {{ auction.token.bg_color }}; color: {{ auction.token.text_color }};"
+                          {% endif %}
+                        {% endif %}>
+                        <h4 class="auction-number">{{ auction.token.token }}</h4>
+                      </div>
+                    </div>
+                    <p><strong>Редкость номера:</strong> {{ auction.token.number_rarity }}</p>
+                    <p><strong>Редкость цифр:</strong> {{ auction.token.text_rarity }}</p>
+                    <p><strong>Редкость фона:</strong> {{ auction.token.bg_rarity }}</p>
+                    <p><strong>Общая редкость:</strong> {{ auction.token.overall_rarity }}</p>
+                    <p><strong>Создатель аукциона:</strong> {{ users.get(auction.seller_id, {}).get('username', auction.seller_id) }}</p>
+                    <p><strong>ID аукциона:</strong> {{ auction.auction_id }}</p>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="col-12">
+            <p>На данный момент нет активных аукционов.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно создания аукциона -->
+  <div class="modal fade" id="createAuctionModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form action="/auction_create" method="post">
+          <div class="modal-header">
+            <h5 class="modal-title">Создать аукцион</h5>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="token_index">NFT номер (из вашей коллекции):</label>
+              <input type="number" class="form-control" id="token_index" name="token_index" required>
+            </div>
+            <div class="form-group">
+              <label for="starting_price">Начальная цена (💎):</label>
+              <input type="number" class="form-control" id="starting_price" name="starting_price" required>
+            </div>
+            <div class="form-group">
+              <label for="duration_minutes">Длительность (в минутах):</label>
+              <input type="number" class="form-control" id="duration_minutes" name="duration_minutes" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+            <button type="submit" class="btn btn-primary">Создать аукцион</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно завершения аукциона -->
+  <div class="modal fade" id="finishAuctionModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form action="/finish_auction" method="post">
+          <div class="modal-header">
+            <h5 class="modal-title">Завершить аукцион</h5>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="finishAuctionId">ID аукциона:</label>
+              <input type="text" class="form-control" id="finishAuctionId" name="auction_id" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+            <button type="submit" class="btn btn-danger">Завершить аукцион</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно ошибок -->
+  <div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Ошибка</h5>
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+        <div class="modal-body" id="errorModalBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- jQuery, Popper и Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- Авто-разворачивание bottom sheet при открытии -->
+  <script>
+    if (window.Telegram && Telegram.WebApp) {
+      // Инициализация WebApp
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+
+      // Вешаем вибрацию на клики по кнопкам
+      if (Telegram.WebApp.HapticFeedback) {
+        const selectors = ['button', 'a.btn', '.btn-icon', 'input[type="submit"]'];
+        document.querySelectorAll(selectors.join(',')).forEach(el => {
+          el.addEventListener('click', () => {
+            // Тип воздействия: 'light', 'medium' или 'heavy'
+            Telegram.WebApp.HapticFeedback.impactOccurred('light');
+          });
+        });
+      }
+    }
+  </script>
+  
+</body>
+</html>

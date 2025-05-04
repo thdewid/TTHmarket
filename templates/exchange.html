@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no">
+  <title>Обмен номерами</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Noto Sans JP', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+    }
+    /* Фиксированная верхняя панель */
+    .fixed-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 70px;
+      z-index: 1000;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 10px;
+    }
+    .fixed-header h1 {
+      font-size: 1.5rem;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .home-btn-img {
+      max-height: 40px;
+    }
+    .content {
+      position: absolute;
+      top: 80px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    /* Позиционирование модальных окон выше */
+    .modal-dialog {
+      margin-top: 10vh;
+    }
+  </style>
+</head>
+<body>
+  <!-- Фиксированная верхняя панель с кнопкой "home" -->
+  <div class="container-fluid fixed-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <a href="/">
+        <img src="/static/butons/home.png" alt="На главную" class="home-btn-img">
+      </a>
+      <h1 class="mb-0 text-center flex-grow-1">Активные сделки</h1>
+      <div style="width:50px;"></div>
+    </div>
+  </div>
+  
+  <!-- Основной контент страницы -->
+  <div class="container content">
+    <!-- Кнопка для открытия модального окна создания сделки -->
+    <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#createDealModal">
+      Создать сделку
+    </button>
+    
+    <!-- Список активных сделок -->
+    {% if pending_exchanges %}
+      <ul class="list-group">
+        {% for deal in pending_exchanges %}
+          <li class="list-group-item">
+            Сделка ID: {{ deal.exchange_id }} — Инициатор: {{ deal.initiator_id }} — Получатель: {{ deal.target_id }}
+            <button type="button" class="btn btn-sm btn-info float-right" 
+                    data-toggle="modal" 
+                    data-target="#dealModal"
+                    data-exchangeid="{{ deal.exchange_id }}"
+                    data-initiator="{{ deal.initiator_id }}"
+                    data-targetid="{{ deal.target_id }}"
+                    data-timestamp="{{ deal.timestamp }}"
+                    data-expires="{{ deal.expires_at }}">
+              Посмотреть детали
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Нет активных сделок.</p>
+    {% endif %}
+  </div>
+
+  <!-- Модальное окно для просмотра деталей сделки -->
+  <div class="modal fade" id="dealModal" tabindex="-1" role="dialog" aria-labelledby="dealModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content" style="border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+        <div class="modal-header">
+          <h5 class="modal-title" id="dealModalLabel">Детали сделки</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Закрыть">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p><strong>ID сделки:</strong> <span id="modalExchangeId"></span></p>
+          <p><strong>Инициатор:</strong> <span id="modalInitiator"></span></p>
+          <p><strong>Получатель:</strong> <span id="modalTarget"></span></p>
+          <p><strong>Время создания:</strong> <span id="modalTimestamp"></span></p>
+          <p><strong>Истекает:</strong> <span id="modalExpires"></span></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-success" id="acceptDealBtn" style="display:none;">Принять сделку</button>
+          <button type="button" class="btn btn-danger" id="cancelDealBtn">Отменить сделку</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно для создания сделки (форма обмена) -->
+  <div class="modal fade" id="createDealModal" tabindex="-1" role="dialog" aria-labelledby="createDealModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <!-- Модальное окно оформлено в стиле аукциона -->
+      <div class="modal-content" style="border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createDealModalLabel">Создать сделку</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Закрыть">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <!-- Форма создания сделки без поля для ввода своего Telegram ID -->
+          <form action="/exchange" method="post">
+            <div class="form-group">
+              <label for="my_index">Номер вашего номера (1-based):</label>
+              <input type="number" class="form-control" id="my_index" name="my_index" required>
+            </div>
+            <div class="form-group">
+              <label for="target_id">Telegram ID или анон. номер пользователя:</label>
+              <input type="text" class="form-control" id="target_id" name="target_id" required>
+            </div>
+            <div class="form-group">
+              <label for="target_index">Номер номера пользователя (1-based):</label>
+              <input type="number" class="form-control" id="target_index" name="target_index" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Предложить обмен</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS и зависимости -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- Авто-разворачивание bottom sheet при открытии -->
+  <script>
+    if (window.Telegram && Telegram.WebApp) {
+      // Инициализация WebApp
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+
+      // Вешаем вибрацию на клики по кнопкам
+      if (Telegram.WebApp.HapticFeedback) {
+        const selectors = ['button', 'a.btn', '.btn-icon', 'input[type="submit"]'];
+        document.querySelectorAll(selectors.join(',')).forEach(el => {
+          el.addEventListener('click', () => {
+            // Тип воздействия: 'light', 'medium' или 'heavy'
+            Telegram.WebApp.HapticFeedback.impactOccurred('light');
+          });
+        });
+      }
+    }
+  </script>
+  
+  <!-- Передаем current_user_id в JavaScript -->
+  <script>
+    var currentUserId = "{{ current_user_id }}";
+  </script>
+
+  <!-- Скрипт для заполнения модального окна данными и обработки кнопок -->
+  <script>
+    $('#dealModal').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget); // кнопка, вызвавшая модальное окно
+      var exchangeId = button.data('exchangeid');
+      var initiator = button.data('initiator');
+      var target = button.data('targetid');
+      var timestamp = button.data('timestamp');
+      var expires = button.data('expires');
+      
+      var modal = $(this);
+      modal.find('#modalExchangeId').text(exchangeId);
+      modal.find('#modalInitiator').text(initiator);
+      modal.find('#modalTarget').text(target);
+      modal.find('#modalTimestamp').text(timestamp);
+      modal.find('#modalExpires').text(expires);
+      
+      // Если текущий пользователь – получатель, показываем кнопку "Принять сделку"
+      if (currentUserId === target.toString()) {
+        $('#acceptDealBtn').show();
+      } else {
+        $('#acceptDealBtn').hide();
+      }
+      
+      // Обработчик кнопки "Отменить сделку"
+      $('#cancelDealBtn').off('click').on('click', function() {
+        window.location.href = "/cancel_exchange_web/" + exchangeId;
+      });
+
+      // Обработчик кнопки "Принять сделку"
+      $('#acceptDealBtn').off('click').on('click', function() {
+        window.location.href = "/accept_exchange_web/" + exchangeId;
+      });
+    });
+  </script>
+</body>
+</html>

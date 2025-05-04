@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no">
+  <title>Список лидеров</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    .fixed-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      height: 70px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 10px;
+    }
+    .fixed-header h1 {
+      font-size: 1.2rem;
+    }
+    .content {
+      position: absolute;
+      top: 80px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    .participant-avatar,
+    .video-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid #ddd;
+      margin-right: 10px;
+    }
+    .home-btn-img {
+      max-height: 40px;
+    }
+    /* Стиль для номера места (без фона) */
+    .rank-badge {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-right: 10px;
+      width: 20px;
+      text-align: center;
+      color: #000;
+      background: none;
+    }
+    /* Настройки для вкладок на мобильных устройствах */
+    .nav-tabs {
+      display: flex;
+      justify-content: center;
+    }
+    .nav-tabs .nav-item {
+      flex: 1;
+      text-align: center;
+    }
+    .nav-tabs .nav-link {
+      padding: 0.3rem 0.5rem;
+      font-size: 0.9rem;
+    }
+    /* ============ адаптация под горизонтальный режим ============ */
+@media (orientation: landscape) {
+  /* уменьшаем высоту шапки */
+  .fixed-header {
+    height: 50px;
+    padding: 5px 10px;
+  }
+  .fixed-header h1 {
+    font-size: 1rem;
+  }
+  .content {
+    top: 60px;  /* шапка 50px + 10px отступ */
+    padding: 5px;
+  }
+
+  /* делаем участника компактнее */
+  .participant-avatar,
+  .video-avatar {
+    width: 40px;
+    height: 40px;
+    margin-right: 8px;
+  }
+  .rank-badge {
+    font-size: 0.8rem;
+    width: 18px;
+    margin-right: 6px;
+  }
+  .list-group-item h5 {
+    font-size: 0.9rem;
+  }
+  .list-group-item p,
+  .list-group-item small {
+    font-size: 0.75rem;
+  }
+
+  /* переключаем список в две колонки */
+  .list-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-gap: 8px;
+  }
+  .list-group .list-group-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 6px 8px;
+  }
+
+  /* табы чуть тоньше */
+  .nav-tabs .nav-link {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.8rem;
+  }
+
+  /* уменьшаем кнопки-навигацию */
+  .home-btn-img {
+    max-height: 30px;
+  }
+}
+  </style>
+</head>
+<body>
+  <!-- Фиксированная верхняя панель -->
+  <div class="container-fluid fixed-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <a href="/">
+        <img src="/static/butons/home.png" alt="На главную" class="home-btn-img">
+      </a>
+      <h1 class="mb-0 text-center flex-grow-1">Список лидеров</h1>
+      <div style="width:50px;"></div>
+    </div>
+  </div>
+
+  <!-- Основной контент -->
+  <div class="container content">
+    <!-- Навигация по вкладкам -->
+    <ul class="nav nav-tabs" id="leaderboardTabs" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" id="total-tab" data-toggle="tab" href="#total" role="tab" aria-controls="total" aria-selected="true">Больше номеров</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="rare-tab" data-toggle="tab" href="#rare" role="tab" aria-controls="rare" aria-selected="false">Больше редких номеров</a>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="leaderboardTabsContent">
+      <!-- Вкладка "Больше номеров" -->
+      <div class="tab-pane fade show active" id="total" role="tabpanel" aria-labelledby="total-tab">
+        <div class="list-group mt-3">
+          {% if current_total %}
+            <!-- Фиксированный блок карточки текущего пользователя (топ-1) с нижней границей -->
+            <a href="/profile/{{ current_total[1] }}" class="list-group-item list-group-item-action d-flex align-items-center" 
+               style="background-color: #f7f7f7; margin-bottom: 15px; border-bottom: 1px solid #ccc;">
+              <div class="rank-badge">
+                {% if current_total[0] == 1 %}
+                  🥇
+                {% elif current_total[0] == 2 %}
+                  🥈
+                {% elif current_total[0] == 3 %}
+                  🥉
+                {% else %}
+                  {{ current_total[0] }}
+                {% endif %}
+              </div>
+              {% set user = current_total[2] %}
+              {% if user.photo_url %}
+                {% if user.photo_url.endswith('.mp4') or user.photo_url[-3:]|lower == 'gif' %}
+                  <video class="video-avatar" autoplay loop muted playsinline>
+                    <source src="{{ user.photo_url }}" type="video/mp4">
+                  </video>
+                {% else %}
+                  <img src="{{ user.photo_url }}" alt="Avatar" class="participant-avatar">
+                {% endif %}
+              {% else %}
+                <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                     style="width:60px; height:60px; margin-right:10px;">
+                  {{ user.username[0]|upper }}
+                </div>
+              {% endif %}
+              <div>
+                <h5 class="mb-1">
+                  {{ user.username }}
+                  {% if user.verified %}
+                    <img src="{{ user.verification_icon }}" alt="Verified" 
+                         style="width:16px; height:16px; margin-left:2px; vertical-align:middle;">
+                  {% endif %}
+                </h5>
+                <p class="mb-1">Номеров: {{ user.tokens|default([])|length }}</p>
+                {% if current_total[1] == current_user_id %}
+                  <small>Баланс: {{ user.balance }} 💎</small>
+                {% endif %}
+              </div>
+              <span class="ml-auto">&gt;</span>
+            </a>
+          {% endif %}
+          <!-- Итоговый список карточек -->
+          {% for pos, uid, user in all_total %}
+            <a href="/profile/{{ uid }}" class="list-group-item list-group-item-action d-flex align-items-center"
+               style="{% if uid == current_user_id %} background-color: #f7f7f7; {% endif %}{% if loop.first and current_total %} border-top: 1px solid #ccc; {% endif %}">
+              <div class="rank-badge">
+                {% if pos == 1 %}
+                  🥇
+                {% elif pos == 2 %}
+                  🥈
+                {% elif pos == 3 %}
+                  🥉
+                {% else %}
+                  {{ pos }}
+                {% endif %}
+              </div>
+              {% if user.photo_url %}
+                {% if user.photo_url.endswith('.mp4') or user.photo_url[-3:]|lower == 'gif' %}
+                  <video class="video-avatar" autoplay loop muted playsinline>
+                    <source src="{{ user.photo_url }}" type="video/mp4">
+                  </video>
+                {% else %}
+                  <img src="{{ user.photo_url }}" alt="Avatar" class="participant-avatar">
+                {% endif %}
+              {% else %}
+                <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                     style="width:60px; height:60px; margin-right:10px;">
+                  {{ user.username[0]|upper }}
+                </div>
+              {% endif %}
+              <div>
+                <h5 class="mb-1">
+                  {{ user.username }}
+                  {% if user.verified %}
+                    <img src="{{ user.verification_icon }}" alt="Verified" 
+                         style="width:16px; height:16px; margin-left:2px; vertical-align:middle;">
+                  {% endif %}
+                </h5>
+                <p class="mb-1">Номеров: {{ user.tokens|default([])|length }}</p>
+                {% if uid == current_user_id %}
+                  <small>Баланс: {{ user.balance }} 💎</small>
+                {% endif %}
+              </div>
+              <span class="ml-auto">&gt;</span>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Вкладка "Больше редких номеров" -->
+      <div class="tab-pane fade" id="rare" role="tabpanel" aria-labelledby="rare-tab">
+        <div class="list-group mt-3">
+          {% if current_rare %}
+            <!-- Фиксированный блок карточки текущего пользователя (топ-1) с нижней границей -->
+            <a href="/profile/{{ current_rare[1] }}" class="list-group-item list-group-item-action d-flex align-items-center" 
+               style="background-color: #f7f7f7; margin-bottom: 15px; border-bottom: 1px solid #ccc;">
+              <div class="rank-badge">
+                {% if current_rare[0] == 1 %}
+                  🥇
+                {% elif current_rare[0] == 2 %}
+                  🥈
+                {% elif current_rare[0] == 3 %}
+                  🥉
+                {% else %}
+                  {{ current_rare[0] }}
+                {% endif %}
+              </div>
+              {% set user = current_rare[2] %}
+              {% if user.photo_url %}
+                {% if user.photo_url.endswith('.mp4') or user.photo_url[-3:]|lower == 'gif' %}
+                  <video class="video-avatar" autoplay loop muted playsinline>
+                    <source src="{{ user.photo_url }}" type="video/mp4">
+                  </video>
+                {% else %}
+                  <img src="{{ user.photo_url }}" alt="Avatar" class="participant-avatar">
+                {% endif %}
+              {% else %}
+                <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                     style="width:60px; height:60px; margin-right:10px;">
+                  {{ user.username[0]|upper }}
+                </div>
+              {% endif %}
+              <div>
+                <h5 class="mb-1">
+                  {{ user.username }}
+                  {% if user.verified %}
+                    <img src="{{ user.verification_icon }}" alt="Verified" 
+                         style="width:16px; height:16px; margin-left:2px; vertical-align:middle;">
+                  {% endif %}
+                </h5>
+                <p class="mb-1">Редких номеров: {{ current_rare[3] }}</p>
+                {% if current_rare[1] == current_user_id %}
+                  <small>Баланс: {{ user.balance }} 💎</small>
+                {% endif %}
+              </div>
+              <span class="ml-auto">&gt;</span>
+            </a>
+          {% endif %}
+          <!-- Итоговый список карточек -->
+          {% for pos, uid, user, rare_count in all_rare %}
+            <a href="/profile/{{ uid }}" class="list-group-item list-group-item-action d-flex align-items-center"
+               style="{% if uid == current_user_id %} background-color: #f7f7f7; {% endif %}{% if loop.first and current_rare %} border-top: 1px solid #ccc; {% endif %}">
+              <div class="rank-badge">
+                {% if pos == 1 %}
+                  🥇
+                {% elif pos == 2 %}
+                  🥈
+                {% elif pos == 3 %}
+                  🥉
+                {% else %}
+                  {{ pos }}
+                {% endif %}
+              </div>
+              {% if user.photo_url %}
+                {% if user.photo_url.endswith('.mp4') or user.photo_url[-3:]|lower == 'gif' %}
+                  <video class="video-avatar" autoplay loop muted playsinline>
+                    <source src="{{ user.photo_url }}" type="video/mp4">
+                  </video>
+                {% else %}
+                  <img src="{{ user.photo_url }}" alt="Avatar" class="participant-avatar">
+                {% endif %}
+              {% else %}
+                <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                     style="width:60px; height:60px; margin-right:10px;">
+                  {{ user.username[0]|upper }}
+                </div>
+              {% endif %}
+              <div>
+                <h5 class="mb-1">
+                  {{ user.username }}
+                  {% if user.verified %}
+                    <img src="{{ user.verification_icon }}" alt="Verified" 
+                         style="width:16px; height:16px; margin-left:2px; vertical-align:middle;">
+                  {% endif %}
+                </h5>
+                <p class="mb-1">Редких номеров: {{ rare_count }}</p>
+                {% if uid == current_user_id %}
+                  <small>Баланс: {{ user.balance }} 💎</small>
+                {% endif %}
+              </div>
+              <span class="ml-auto">&gt;</span>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Скрипты Bootstrap -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- Авто-разворачивание bottom sheet при открытии -->
+  <script>
+    if (window.Telegram && Telegram.WebApp) {
+      // Инициализация WebApp
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+
+      // Вешаем вибрацию на клики по кнопкам
+      if (Telegram.WebApp.HapticFeedback) {
+        const selectors = ['button', 'a.btn', '.btn-icon', 'input[type="submit"]'];
+        document.querySelectorAll(selectors.join(',')).forEach(el => {
+          el.addEventListener('click', () => {
+            // Тип воздействия: 'light', 'medium' или 'heavy'
+            Telegram.WebApp.HapticFeedback.impactOccurred('light');
+          });
+        });
+      }
+    }
+  </script>
+  
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no">
+  <title>Скрещивать номера | TTH NFT</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@700&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      font-family: 'Noto Sans JP', sans-serif;
+      color: #333;
+    }
+    .fixed-header {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 70px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 1000;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .fixed-header h1 {
+      font-size: 1.5rem;
+      margin: 0;
+      flex-grow: 1;
+      text-align: center;
+    }
+    .fixed-header .btn-home {
+      max-height: 40px;
+    }
+    .content {
+      position: absolute;
+      top: 70px; left: 0; right: 0; bottom: 0;
+      overflow-y: auto;
+      padding: 15px;
+    }
+    .form-section {
+      max-width: 500px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    #selectedList .list-group-item {
+      cursor: grab;
+    }
+  </style>
+</head>
+<body>
+  <!-- Фиксированная верхняя панель -->
+  <div class="fixed-header">
+    <a href="/">
+      <img src="/static/butons/home.png" alt="На главную" class="btn-home">
+    </a>
+    <h1>Скрещивать номера</h1>
+    <div style="width:40px;"></div>
+  </div>
+
+  <!-- Прокручиваемый контент -->
+  <div class="content">
+    {% if not user %}
+      <div class="alert alert-warning text-center">
+        Пожалуйста, <a href="/login">войдите</a>, чтобы скрещивать номера.
+      </div>
+    {% else %}
+      <div class="form-section">
+
+        <p>Выберите до трёх номеров из вашей коллекции для скрещивания:</p>
+        <p class="small text-muted mb-3">
+          После скрещивания вы получите анонимный номер, который можно использовать вместо вашего ID.
+        </p>
+
+        <form action="/cross" method="post" id="crossForm">
+  <input type="hidden" name="user_id" value="{{ user_id }}">
+  <!-- Новое скрытое поле -->
+  <input type="hidden" name="order" id="mergeOrder" value="">
+  <!-- ... далее ваш список чекбоксов ... -->
+
+          <div class="form-group">
+            {% for token in user.tokens %}
+              <div class="form-check">
+                <input
+                  class="form-check-input cross-checkbox"
+                  type="checkbox"
+                  name="selected_tokens"
+                  id="tok{{ loop.index }}"
+                  value="{{ token.token }}"
+                  data-token="{{ token.token }}"
+                  onchange="updateSelection()"
+                >
+                <label class="form-check-label" for="tok{{ loop.index }}">
+                  {{ loop.index }}. {{ token.token }}
+                  <small class="text-muted">(редкость {{ token.overall_rarity }})</small>
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+
+          <!-- Текущий анонимный номер перед порядком объединения -->
+          {% if user.crossed_number %}
+            <p class="mb-3">
+              Ваш текущий анонимный номер:
+              <strong>{{ user.crossed_number.token }}</strong>
+            </p>
+          {% endif %}
+
+          <hr>
+
+          <div class="form-group">
+            <label>Порядок объединения:</label>
+            <ul id="selectedList" class="list-group mb-2">
+              <!-- выбранные элементы будут здесь -->
+            </ul>
+          </div>
+
+          <div class="form-group">
+            <label>Результат:</label>
+            <div id="result-number" class="h4">—</div>
+          </div>
+
+          <div class="form-group">
+            <label>Стоимость:</label>
+            <div class="h5 text-danger">199 💎</div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" id="cross-submit" disabled>
+            {% if user.crossed_number %}
+              Обновить за 199 💎
+            {% else %}
+              Скрестить за 199 💎
+            {% endif %}
+          </button>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Скрипты -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <script>
+    let sortable = null;
+
+    function updateSelection() {
+      const checkboxes = Array.from(document.querySelectorAll('.cross-checkbox'));
+      const selected = checkboxes.filter(ch => ch.checked).map(ch => ch.dataset.token);
+      const list = document.getElementById('selectedList');
+      list.innerHTML = '';
+      selected.forEach(token => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.textContent = token;
+        li.setAttribute('data-token', token);
+        list.appendChild(li);
+      });
+      if (!sortable) {
+        sortable = Sortable.create(list, {
+          animation: 150,
+          onSort: updateResult
+        });
+      }
+      updateResult();
+    }
+
+    function updateResult() {
+  const items = Array.from(document.querySelectorAll('#selectedList li'));
+  const tokens = items.map(li => li.getAttribute('data-token'));
+  // Обновляем кнопку и отображение
+  const submit = document.getElementById('cross-submit');
+  const resEl = document.getElementById('result-number');
+  if (tokens.length >= 2 && tokens.length <= 3) {
+    resEl.textContent = '+' + tokens.join('');
+    submit.disabled = false;
+  } else {
+    resEl.textContent = '—';
+    submit.disabled = true;
+  }
+  // **Записываем порядок в скрытое поле**
+  document.getElementById('mergeOrder').value = tokens.join(',');
+}
+
+    // Telegram WebApp init + haptic feedback
+    if (window.Telegram && Telegram.WebApp) {
+      const hf = Telegram.WebApp.HapticFeedback;
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+      if (hf) {
+        // existing feedback bindings
+        ['button', 'a.btn', '.btn-icon', 'input[type="submit"]']
+          .forEach(sel => document.querySelectorAll(sel).forEach(el =>
+            el.addEventListener('click', () => hf.impactOccurred('light'))
+          ));
+        // feedback on cross-submit
+        const crossBtn = document.getElementById('cross-submit');
+        crossBtn.addEventListener('click', (e) => {
+          if (crossBtn.disabled) {
+            hf.notificationOccurred('error');
+            e.preventDefault();
+          } else {
+            hf.notificationOccurred('success');
+          }
+        });
+      }
+    }
+  </script>
+</body>
+</html>
